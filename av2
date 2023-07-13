@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>av2</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+      
+
+        $("#formIncluirFiscal").submit(function(event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            
+            if (!validarDados()) {
+                return;
+            }
+
+       
+            $.ajax({
+                url: "processar.php",
+                method: "POST",
+                data: $(this).serialize() + "&acao=incluirFiscal",
+                success: function(response) {
+                }
+            });
+        });
+
+       
+        $("#formAlterarSalaProva").submit(function(event) {
+            event.preventDefault(); 
+
+           
+            if (!validarDados()) {
+                return;
+            }
+
+           
+            $.ajax({
+                url: "processar.php",
+                method: "POST",
+                data: $(this).serialize() + "&acao=alterarSalaProva",
+                success: function(response) {
+                  
+                }
+            });
+        });
+      function validarDados() 
+      {
+            // fazer validaçao
+
+           
+      }
+    </script>
+</head>
+<body>
+    <h1>Sistema de Controle de Entregas - KeyFalls</h1>
+
+    <!-- Funcionalidade: Listar candidatos em ordem de nome, por sala de prova -->
+    <h2>Listar Candidatos</h2>
+    <?php
+   
+    $servername = "localhost";
+    $username = "seu_usuario";
+    $password = "sua_senha";
+    $dbname = "av2";
+
+    $conn = new mysqli($servername, $username, $password, $dbname);
+
+  
+    if ($conn->connect_error) {
+        die("Falha na conexão com o banco de dados: " . $conn->connect_error);
+    }
+
+    
+    $sql = "SELECT * FROM candidatos ORDER BY nome";
+    $result = $conn->query($sql);
+
+    if ($result->num_rows > 0) {
+        $salaAtual = '';
+        $candidatosPorSala = 0;
+        while ($row = $result->fetch_assoc()) {
+        
+            if ($salaAtual != $row['salaDeProva']) {
+                echo "<h3>Sala de Prova " . $row['salaDeProva'] . "</h3>";
+                $salaAtual = $row['salaDeProva'];
+                $candidatosPorSala = 0;
+            }
+
+          
+            echo "Nome: " . $row['nome'] . "<br>";
+            echo "CPF: " . $row['cpf'] . "<br>";
+            echo "Identidade: " . $row['identidade'] . "<br>";
+            echo "Email: " . $row['email'] . "<br>";
+            echo "Cargo: " . $row['cargo'] . "<br>";
+            echo "<button onclick='alterarSalaProva(" . $row['id'] . ")'>Alterar Sala de Prova</button>";
+            echo "<hr>";
+
+            $candidatosPorSala++;
+
+           
+            if ($candidatosPorSala >= 50) {
+                echo "<br><br>"; // Adicione espaço entre as salas de prova se necessário
+            }
+        }
+    } else {
+        echo "Nenhum candidato encontrado.";
+    }
+
+
+    $conn->close();
+    ?>
+
+    <!-- Funcionalidade: Incluir fiscal de prova -->
+    <h2>Incluir Fiscal de Prova</h2>
+    <form id="formIncluirFiscal" method="post" onsubmit="return validarDados()">
+        <label for="nomeFiscal">Nome:</label>
+        <input type="text" id="nomeFiscal" name="nomeFiscal" required><br>
+
+        <label for="cpfFiscal">CPF:</label>
+        <input type="text" id="cpfFiscal" name="cpfFiscal" required><br>
+
+        <label for="salaProvaFiscal">Sala de Prova:</label>
+        <input type="text" id="salaProvaFiscal" name="salaProvaFiscal" required><br>
+
+        <input type="submit" value="Incluir Fiscal">
+    </form>
+
+    <!-- Funcionalidade: Alterar a sala de prova de um candidato -->
+    <h2>Alterar Sala de Prova de Candidato</h2>
+    <form id="formAlterarSalaProva" method="post" onsubmit="return validarDados()">
+        <label for="candidatoId">ID do Candidato:</label>
+        <input type="text" id="candidatoId" name="candidatoId" required><br>
+
+        <label for="novaSalaProva">Nova Sala de Prova:</label>
+        <input type="text" id="novaSalaProva" name="novaSalaProva" required><br>
+
+        <input type="submit" value="Alterar Sala de Prova">
+    </form>
+</body>
+</html>
+
+<?php
+
+function validarDados($dados) {
+    
+    if (empty($dados['nomeFiscal']) || empty($dados['cpfFiscal']) || empty($dados['salaProvaFiscal'])) {
+        return false;
+    }
+
+  
+
+    return true;
+}
+
+
+$servername = "localhost";
+$username = "seu_usuario";
+$password = "sua_senha";
+$dbname = "av2";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+
+if ($conn->connect_error) {
+    die("Falha na conexão com o banco de dados: " . $conn->connect_error);
+}
+
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+   
+    if (isset($_POST["acao"]) && $_POST["acao"] == "incluirFiscal") {
+      
+        if (validarDados($_POST)) {
+         
+            $nomeFiscal = $_POST["nomeFiscal"];
+            $cpfFiscal = $_POST["cpfFiscal"];
+            $salaProvaFiscal = $_POST["salaProvaFiscal"];
+
+           
+            $stmt = $conn->prepare("INSERT INTO fiscais (nome, cpf, salaDeProva) VALUES (?, ?, ?)");
+            $stmt->bind_param("sss", $nomeFiscal, $cpfFiscal, $salaProvaFiscal);
+            if ($stmt->execute()) {
+                echo "Fiscal de prova incluído com sucesso.";
+            } else {
+                echo "Erro ao incluir o fiscal de prova: " . $stmt->error;
+            }
+            $stmt->close();
+        } else {
+            echo "Dados inválidos para inclusão do fiscal de prova.";
+        }
+    }
+
+    if (isset($_POST["acao"]) && $_POST["acao"] == "alterarSalaProva") {
+    
+        if (validarDados($_POST)) {
+         
+            $candidatoId = $_POST["candidatoId"];
+            $novaSalaProva = $_POST["novaSalaProva"];
+
+          
+            $stmt = $conn->prepare("UPDATE candidatos SET salaDeProva = ? WHERE id = ?");
+            $stmt->bind_param("si", $novaSalaProva, $candidatoId);
+            if ($stmt->execute()) {
+                echo "Sala de prova do candidato atualizada com sucesso.";
+            } else {
+                echo "Erro ao atualizar a sala de prova do candidato: " . $stmt->error;
+            }
+            $stmt->close();
+        } else {
+            echo "Dados inválidos para alteração da sala de prova do candidato.";
+        }
+    }
+}
+
+
+$conn->close();
+?>
+
+
+
